@@ -43,6 +43,9 @@ def load_excel_model(uploaded_file) -> dict:
     matrix = [_list(matrix_row, "transition_matrix", ",") for matrix_row in str(row["transition_matrix"]).split(";") if matrix_row.strip()]
     if len(matrix) != len(states) or any(len(matrix_row) != len(states) for matrix_row in matrix):
         raise ValueError("transition_matrix must have one semicolon-separated row per state")
+    initial_distribution = _list(row["initial_distribution"], "initial_distribution")
+    if len(initial_distribution) != len(states):
+        raise ValueError("initial_distribution must contain one | separated value per state")
     def state_values(field: str) -> dict[str, float]:
         values = _list(row[field], field)
         if len(values) != len(states):
@@ -51,7 +54,7 @@ def load_excel_model(uploaded_file) -> dict:
     return {
         "study": {"project_name": str(row["project_name"]), "objective": "", "analysis_type": str(row["analysis_type"]), "strategy_a": str(row["strategy_a"]), "strategy_b": str(row["strategy_b"]), "perspective": str(row["perspective"]), "currency": str(row["currency"]), "price_year": int(_number(row["price_year"], "price_year"))},
         "time": {"horizon_years": _number(row["horizon_years"], "horizon_years"), "cycle_years": _number(row["cycle_years"], "cycle_years"), "cost_discount_rate": _number(row["cost_discount_rate"], "cost_discount_rate"), "effect_discount_rate": _number(row["effect_discount_rate"], "effect_discount_rate")},
-        "markov": {"states": states, "initial_distribution": _list(row["initial_distribution"], "initial_distribution"), "transition_matrix": matrix},
+        "markov": {"states": states, "initial_distribution": initial_distribution, "transition_matrix": matrix},
         "costs": {"initial_cost": {"A": _number(row["initial_cost_a"], "initial_cost_a"), "B": _number(row["initial_cost_b"], "initial_cost_b")}, "strategy_cost_per_cycle": {"A": _number(row["strategy_cost_a"], "strategy_cost_a"), "B": _number(row["strategy_cost_b"], "strategy_cost_b")}, "state_cost_per_cycle": state_values("state_costs")},
         "outcomes": {"effect_unit": str(row["effect_unit"]), "state_effect": {"A": state_values("cea_effect_a"), "B": state_values("cea_effect_b")}, "state_utility": {"A": state_values("cua_utility_a"), "B": state_values("cua_utility_b")}},
     }
