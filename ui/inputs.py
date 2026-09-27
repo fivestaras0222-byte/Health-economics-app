@@ -14,39 +14,41 @@ def render_inputs(language: str, preset: dict | None = None) -> tuple[dict, bool
     tr = lambda key: t(key, language)
     units, perspectives = tr("years"), tr("perspectives")
     preset = preset or {}
+    input_version = st.session_state.get("input_version", 0)
+    widget_key = lambda name: f"{name}_{input_version}"
     study_preset = preset.get("study", {})
     time_preset = preset.get("time", {})
     markov_preset = preset.get("markov", {})
     cost_preset = preset.get("costs", {})
     with st.expander(tr("design"), expanded=True):
-        project_name = st.text_input(tr("project"), study_preset.get("project_name", "Health economics evaluation" if language == "en" else "卫生经济学评价项目"), key="project_name")
+        project_name = st.text_input(tr("project"), study_preset.get("project_name", "Health economics evaluation" if language == "en" else "卫生经济学评价项目"), key=widget_key("project_name"))
         analysis_options = ["CMA", "CEA", "CUA"]
-        analysis_type = st.radio(tr("analysis"), analysis_options, horizontal=True, index=analysis_options.index(study_preset.get("analysis_type", "CUA")) if study_preset.get("analysis_type", "CUA") in analysis_options else 2, key="analysis_type")
+        analysis_type = st.radio(tr("analysis"), analysis_options, horizontal=True, index=analysis_options.index(study_preset.get("analysis_type", "CUA")) if study_preset.get("analysis_type", "CUA") in analysis_options else 2, key=widget_key("analysis_type"))
         ca, cb = st.columns(2)
-        with ca: name_a = st.text_input(tr("strategy_a"), study_preset.get("strategy_a", "Treatment A"), key="strategy_a")
-        with cb: name_b = st.text_input(tr("strategy_b"), study_preset.get("strategy_b", "Treatment B"), key="strategy_b")
-        perspective = st.selectbox(tr("perspective"), perspectives, key="perspective")
+        with ca: name_a = st.text_input(tr("strategy_a"), study_preset.get("strategy_a", "Treatment A"), key=widget_key("strategy_a"))
+        with cb: name_b = st.text_input(tr("strategy_b"), study_preset.get("strategy_b", "Treatment B"), key=widget_key("strategy_b"))
+        perspective = st.selectbox(tr("perspective"), perspectives, key=widget_key("perspective"))
         cc, cy = st.columns(2)
-        with cc: currency = st.selectbox(tr("currency"), ["CNY", "USD"], key="currency")
-        with cy: price_year = st.number_input(tr("price_year"), 2000, 2100, int(study_preset.get("price_year", 2026)), key="price_year")
+        with cc: currency = st.selectbox(tr("currency"), ["CNY", "USD"], key=widget_key("currency"))
+        with cy: price_year = st.number_input(tr("price_year"), 2000, 2100, int(study_preset.get("price_year", 2026)), key=widget_key("price_year"))
     with st.expander(tr("model"), expanded=True):
         ch, cl = st.columns(2)
         with ch:
-            horizon_value = st.number_input(tr("horizon"), min_value=0.01, value=float(time_preset.get("horizon_years", 5.0)), key="horizon")
-            horizon_unit = st.selectbox(tr("horizon_unit"), units, key="horizon_unit")
+            horizon_value = st.number_input(tr("horizon"), min_value=0.01, value=float(time_preset.get("horizon_years", 5.0)), key=widget_key("horizon"))
+            horizon_unit = st.selectbox(tr("horizon_unit"), units, key=widget_key("horizon_unit"))
         with cl:
-            cycle_value = st.number_input(tr("cycle"), min_value=0.01, value=float(time_preset.get("cycle_years", 1.0)), key="cycle")
-            cycle_unit = st.selectbox(tr("cycle_unit"), units, key="cycle_unit")
+            cycle_value = st.number_input(tr("cycle"), min_value=0.01, value=float(time_preset.get("cycle_years", 1.0)), key=widget_key("cycle"))
+            cycle_unit = st.selectbox(tr("cycle_unit"), units, key=widget_key("cycle_unit"))
         cd, ed = st.columns(2)
-        with cd: cost_rate = st.number_input(tr("cost_discount"), 0.0, 1.0, float(time_preset.get("cost_discount_rate", 0.0)), format="%.4f", key="cost_discount")
-        with ed: effect_rate = st.number_input(tr("effect_discount"), 0.0, 1.0, float(time_preset.get("effect_discount_rate", 0.0)), format="%.4f", key="effect_discount")
-        states_text = st.text_area(tr("states"), "\n".join(markov_preset.get("states", ["Stable", "Progression", "Death"])), key="states")
+        with cd: cost_rate = st.number_input(tr("cost_discount"), 0.0, 1.0, float(time_preset.get("cost_discount_rate", 0.0)), format="%.4f", key=widget_key("cost_discount"))
+        with ed: effect_rate = st.number_input(tr("effect_discount"), 0.0, 1.0, float(time_preset.get("effect_discount_rate", 0.0)), format="%.4f", key=widget_key("effect_discount"))
+        states_text = st.text_area(tr("states"), "\n".join(markov_preset.get("states", ["Stable", "Progression", "Death"])), key=widget_key("states"))
         states = [item.strip() for item in states_text.splitlines() if item.strip()]
         initial_values = list(markov_preset.get("initial_distribution", [1.0] + [0.0] * max(0, len(states)-1)))
         # A changed state list or malformed import must not crash the interface.
         if len(initial_values) != len(states):
             initial_values = [1.0] + [0.0] * max(0, len(states)-1)
-        initial = st.data_editor(pd.DataFrame({tr("state"): states, tr("initial"): initial_values}), hide_index=True, disabled=[tr("state")], key="initial_distribution")
+        initial = st.data_editor(pd.DataFrame({tr("state"): states, tr("initial"): initial_values}), hide_index=True, disabled=[tr("state")], key=widget_key("initial_distribution"))
         st.caption(tr("initial_caption"))
         # Default values match the complete three-state test scenario.
         if markov_preset.get("transition_matrix") and markov_preset.get("states") == states:
@@ -59,20 +61,20 @@ def render_inputs(language: str, preset: dict | None = None) -> tuple[dict, bool
         else:
             matrix_default = pd.DataFrame(0.0, index=states, columns=states)
             for i in range(len(states)): matrix_default.iloc[i, i] = 1.0
-        matrix = st.data_editor(matrix_default, key="transition_matrix")
+        matrix = st.data_editor(matrix_default, key=widget_key("transition_matrix"))
         st.caption(tr("matrix_caption"))
     with st.expander(tr("costs"), expanded=True):
         is_default_scenario = states == ["Stable", "Progression", "Death"]
         costs = st.data_editor(
             pd.DataFrame({tr("item"): [tr("initial_cost"), tr("strategy_cost")], name_a: [cost_preset.get("initial_cost", {}).get("A", 10000.0 if is_default_scenario else 0.0), cost_preset.get("strategy_cost_per_cycle", {}).get("A", 500.0 if is_default_scenario else 0.0)], name_b: [cost_preset.get("initial_cost", {}).get("B", 8000.0 if is_default_scenario else 0.0), cost_preset.get("strategy_cost_per_cycle", {}).get("B", 300.0 if is_default_scenario else 0.0)]}),
-            hide_index=True, disabled=[tr("item")], key="strategy_costs"
+            hide_index=True, disabled=[tr("item")], key=widget_key("strategy_costs")
         )
         state_cost_values = [cost_preset.get("state_cost_per_cycle", {}).get(state, default) for state, default in zip(states, [2000.0, 5000.0, 0.0] if is_default_scenario else [0.0]*len(states))]
-        state_cost = st.data_editor(pd.DataFrame({tr("state"): states, tr("state_cost"): state_cost_values}), hide_index=True, disabled=[tr("state")], key="state_costs")
+        state_cost = st.data_editor(pd.DataFrame({tr("state"): states, tr("state_cost"): state_cost_values}), hide_index=True, disabled=[tr("state")], key=widget_key("state_costs"))
     outcomes = None
     if analysis_type != "CMA":
         with st.expander(tr("utility") if analysis_type == "CUA" else tr("effect"), expanded=True):
-            effect_unit = st.text_input(tr("effect_unit"), preset.get("outcomes", {}).get("effect_unit", "life-years"), key="effect_unit") if analysis_type == "CEA" else "QALY"
+            effect_unit = st.text_input(tr("effect_unit"), preset.get("outcomes", {}).get("effect_unit", "life-years"), key=widget_key("effect_unit")) if analysis_type == "CEA" else "QALY"
             imported_outcomes = preset.get("outcomes", {}).get("state_utility" if analysis_type == "CUA" else "state_effect", {})
             if imported_outcomes:
                 defaults_a = [imported_outcomes.get("A", {}).get(state, 0.0) for state in states]
@@ -84,7 +86,7 @@ def render_inputs(language: str, preset: dict | None = None) -> tuple[dict, bool
                 defaults_a, defaults_b = [1.00, 0.75, 0.0], [0.90, 0.65, 0.0]
             else:
                 defaults_a, defaults_b = [0.0]*len(states), [0.0]*len(states)
-            frame = st.data_editor(pd.DataFrame({tr("state"): states, name_a: defaults_a, name_b: defaults_b}), hide_index=True, disabled=[tr("state")], key=f"outcomes_{analysis_type}")
+            frame = st.data_editor(pd.DataFrame({tr("state"): states, name_a: defaults_a, name_b: defaults_b}), hide_index=True, disabled=[tr("state")], key=widget_key(f"outcomes_{analysis_type}"))
             outcomes = {"A": dict(zip(states, frame[name_a].tolist())), "B": dict(zip(states, frame[name_b].tolist()))}
     else: effect_unit = None
     run = st.button(tr("run"), type="primary", use_container_width=True)
