@@ -1,0 +1,107 @@
+from __future__ import annotations
+
+import math
+import sys
+from pathlib import Path
+
+import streamlit as st
+
+ROOT = Path(__file__).parent
+sys.path.insert(0, str(ROOT))
+
+from engine.economics import calculate_incremental, evaluate_strategy
+from engine.markov import run_markov
+from engine.validation import validate_model
+from ui.charts import comparison_chart, state_chart
+from ui.inputs import render_inputs
+from ui.i18n import t
+from ui.results import render_results
+from utils.export import result_csv, result_json
+from utils.importer import load_excel_model
+
+
+st.set_page_config(page_title="卫生经济学评价分析系统Health Economics Evaluation System", page_icon="⚕", layout="wide")
+st.markdown("""<style>
+    .block-container {padding-top: 1.6rem; padding-bottom: 2rem;}
+    [data-testid='stVerticalBlockBorderWrapper'] {border-color: #dbe5ee; border-radius: 10px;}
+</style>""", unsafe_allow_html=True)
+language_label = st.sidebar.selectbox("Language / 界面语言", ["中文", "English"])
+language = "zh" if language_label == "中文" else "en"
+tr = lambda key: t(key, language)
+upload_label = "使用 XLSX 文件导入" if language == "zh" else "Use XLSX file to import"
+choose_label = "选择 XLSX 文件" if language == "zh" else "Choose XLSX file"
+format_label = "XLSX 格式说明" if language == "zh" else "XLSX format"
+format_text = (
+    "仅一个工作表、仅两行：第 1 行为字段名，第 2 行为数值。多状态数值使用 | 分隔；转移矩阵各行使用 ; 分隔。请直接使用下方已测试数据作为模板。"
+    if language == "zh" else
+    "Use one worksheet with exactly two rows: field names in row 1 and values in row 2. Separate state values with | and transition-matrix rows with ;. Use the tested files below as templates."
+)
+uploaded_file = st.sidebar.file_uploader(choose_label, type=["xlsx"], key="excel_upload")
+if st.sidebar.button(upload_label, use_container_width=True, disabled=uploaded_file is None):
+    try:
+        imported_model = load_excel_model(uploaded_file)
+        for state_key in ("project_name", "analysis_type", "strategy_a", "strategy_b", "perspective", "currency", "price_year", "horizon", "horizon_unit", "cycle", "cycle_unit", "cost_discount", "effect_discount", "states", "initial_distribution", "transition_matrix", "strategy_costs", "state_costs", "outcomes_CEA", "outcomes_CUA", "effect_unit", "latest_result", "latest_model"):
+            st.session_state.pop(state_key, None)
+        st.session_state["imported_model"] = imported_model
+        st.rerun()
+    except Exception as exc:
+        st.sidebar.error(("导入失败：" if language == "zh" else "Import failed: ") + str(exc))
+st.sidebar.caption(format_label + "：" + format_text)
+template_label = "示例文件下载" if language == "zh" else "Download example file"
+template_help = "下载后可直接填写第 2 行并导入。" if language == "zh" else "Edit row 2 directly, then import the file."
+template_path = ROOT / "assets" / "model_input_template.xlsx"
+if template_path.exists():
+    st.sidebar.download_button(template_label, template_path.read_bytes(), "model_input_template.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", help=template_help, use_container_width=True)
+reset_label = "恢复默认测试数据" if language == "zh" else "Restore default test data"
+if st.sidebar.button(reset_label, use_container_width=True):
+    for state_key in ("project_name", "analysis_type", "strategy_a", "strategy_b", "perspective", "currency", "price_year", "horizon", "horizon_unit", "cycle", "cycle_unit", "cost_discount", "effect_discount", "states", "initial_distribution", "transition_matrix", "strategy_costs", "state_costs", "outcomes_CEA", "outcomes_CUA", "effect_unit", "latest_result", "latest_model", "imported_model"):
+        st.session_state.pop(state_key, None)
+    st.rerun()
+st.sidebar.markdown("<p style='color:#C62828;font-size:0.72rem;white-space:nowrap;margin:0.6rem 0 0;'>Disclaimer: Only used for research purposes</p>", unsafe_allow_html=True)
+st.title(tr("title"))
+st.caption(tr("subtitle"))
+
+left, right = st.columns([1, 1.65], gap="large")
+with left:
+    model, run = render_inputs(language, st.session_state.get("imported_model"))
+
+if run:
+    errors = validate_model(model)
+    if errors:
+        with left:
+            st.error(tr("model_error"))
+            for error in errors:
+                st.write(f"• {error}")
+    else:
+        cycles = round(model["time"]["horizon_years"] / model["time"]["cycle_years"])
+        with st.spinner("正在运行 Markov 模型..."):
+            trace = run_markov(model["markov"]["initial_distribution"], model["markov"]["transition_matrix"], cycles, model["markov"]["states"])
+            outcome_values = None if model["study"]["analysis_type"] == "CMA" else (
+                model["outcomes"]["state_utility"] if model["study"]["analysis_type"] == "CUA" else model["outcomes"]["state_effect"])
+            common = dict(trace=trace, state_costs=model["costs"]["state_cost_per_cycle"],
+                          cycle_years=model["time"]["cycle_years"], cost_discount_rate=model["time"]["cost_discount_rate"],
+                          effect_discount_rate=model["time"]["effect_discount_rate"])
+            a = evaluate_strategy(initial_cost=model["costs"]["initial_cost"]["A"], strategy_cost_per_cycle=model["costs"]["strategy_cost_per_cycle"]["A"], state_outcomes=None if outcome_values is None else outcome_values["A"], **common)
+            b = evaluate_strategy(initial_cost=model["costs"]["initial_cost"]["B"], strategy_cost_per_cycle=model["costs"]["strategy_cost_per_cycle"]["B"], state_outcomes=None if outcome_values is None else outcome_values["B"], **common)
+            st.session_state["latest_result"] = {"trace": trace, "strategy_a": a, "strategy_b": b,
+                                                  "incremental": calculate_incremental(a, b, model["study"]["analysis_type"])}
+            st.session_state["latest_model"] = model
+        with left: st.success(tr("completed"))
+
+with right:
+    if "latest_result" not in st.session_state:
+        st.info(tr("empty"))
+    else:
+        result = st.session_state["latest_result"]; saved_model = st.session_state["latest_model"]
+        render_results(result, saved_model, language)
+        st.subheader(tr("trend"))
+        st.plotly_chart(state_chart(result["trace"], tr("state_chart")), use_container_width=True)
+        study = saved_model["study"]
+        st.plotly_chart(comparison_chart(result["strategy_a"]["cumulative_costs"], result["strategy_b"]["cumulative_costs"], study["strategy_a"], study["strategy_b"], tr("cost_chart"), f"{tr('cum_cost')} ({study['currency']})", tr("cycle_axis")), use_container_width=True)
+        if study["analysis_type"] != "CMA":
+            label = "累计 QALY" if study["analysis_type"] == "CUA" else f"累计 {saved_model['outcomes']['effect_unit']}"
+            outcome_title = label + (" trend" if language == "en" else "趋势")
+            st.plotly_chart(comparison_chart(result["strategy_a"]["cumulative_outcomes"], result["strategy_b"]["cumulative_outcomes"], study["strategy_a"], study["strategy_b"], outcome_title, label, tr("cycle_axis")), use_container_width=True)
+        st.download_button(tr("export"), result_json(saved_model, result), "health_economics_result.json", "application/json")
+        csv_label = "导出结果 CSV" if language == "zh" else "Export results as CSV"
+        st.download_button(csv_label, result_csv(saved_model, result), "health_economics_result.csv", "text/csv")
