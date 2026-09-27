@@ -20,7 +20,7 @@ from utils.export import result_csv, result_json
 from utils.importer import load_excel_model
 
 
-st.set_page_config(page_title="卫生经济学评价分析系统Health Economics Evaluation System", page_icon="⚕", layout="wide")
+st.set_page_config(page_title="卫生经济学评价分析系统", page_icon="⚕", layout="wide")
 st.markdown("""<style>
     .block-container {padding-top: 1.6rem; padding-bottom: 2rem;}
     [data-testid='stVerticalBlockBorderWrapper'] {border-color: #dbe5ee; border-radius: 10px;}
@@ -40,6 +40,10 @@ uploaded_file = st.sidebar.file_uploader(choose_label, type=["xlsx"], key="excel
 if st.sidebar.button(upload_label, use_container_width=True, disabled=uploaded_file is None):
     try:
         imported_model = load_excel_model(uploaded_file)
+        # Give every import a fresh set of widget keys.  Without this, Streamlit
+        # can reuse an earlier 3-state data_editor value after a 5-state file is
+        # displayed, causing the model to change when the user clicks Run.
+        st.session_state["input_version"] = st.session_state.get("input_version", 0) + 1
         for state_key in ("project_name", "analysis_type", "strategy_a", "strategy_b", "perspective", "currency", "price_year", "horizon", "horizon_unit", "cycle", "cycle_unit", "cost_discount", "effect_discount", "states", "initial_distribution", "transition_matrix", "strategy_costs", "state_costs", "outcomes_CEA", "outcomes_CUA", "effect_unit", "latest_result", "latest_model"):
             st.session_state.pop(state_key, None)
         st.session_state["imported_model"] = imported_model
@@ -54,6 +58,9 @@ if template_path.exists():
     st.sidebar.download_button(template_label, template_path.read_bytes(), "model_input_template.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", help=template_help, use_container_width=True)
 reset_label = "恢复默认测试数据" if language == "zh" else "Restore default test data"
 if st.sidebar.button(reset_label, use_container_width=True):
+    # Reset also needs a fresh key namespace, otherwise a prior imported model
+    # may be restored from Streamlit's widget-state cache.
+    st.session_state["input_version"] = st.session_state.get("input_version", 0) + 1
     for state_key in ("project_name", "analysis_type", "strategy_a", "strategy_b", "perspective", "currency", "price_year", "horizon", "horizon_unit", "cycle", "cycle_unit", "cost_discount", "effect_discount", "states", "initial_distribution", "transition_matrix", "strategy_costs", "state_costs", "outcomes_CEA", "outcomes_CUA", "effect_unit", "latest_result", "latest_model", "imported_model"):
         st.session_state.pop(state_key, None)
     st.rerun()
