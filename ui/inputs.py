@@ -42,7 +42,10 @@ def render_inputs(language: str, preset: dict | None = None) -> tuple[dict, bool
         with ed: effect_rate = st.number_input(tr("effect_discount"), 0.0, 1.0, float(time_preset.get("effect_discount_rate", 0.0)), format="%.4f", key="effect_discount")
         states_text = st.text_area(tr("states"), "\n".join(markov_preset.get("states", ["Stable", "Progression", "Death"])), key="states")
         states = [item.strip() for item in states_text.splitlines() if item.strip()]
-        initial_values = markov_preset.get("initial_distribution", [1.0] + [0.0] * max(0, len(states)-1))
+        initial_values = list(markov_preset.get("initial_distribution", [1.0] + [0.0] * max(0, len(states)-1)))
+        # A changed state list or malformed import must not crash the interface.
+        if len(initial_values) != len(states):
+            initial_values = [1.0] + [0.0] * max(0, len(states)-1)
         initial = st.data_editor(pd.DataFrame({tr("state"): states, tr("initial"): initial_values}), hide_index=True, disabled=[tr("state")], key="initial_distribution")
         st.caption(tr("initial_caption"))
         # Default values match the complete three-state test scenario.
