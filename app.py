@@ -9,7 +9,7 @@ import streamlit as st
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
-from engine.economics import calculate_incremental, convert_strategy_costs, evaluate_strategy
+from engine.economics import calculate_incremental, evaluate_strategy
 from engine.markov import run_markov
 from engine.validation import validate_model
 from ui.charts import comparison_chart, state_chart
@@ -20,7 +20,16 @@ from utils.export import result_csv, result_json
 from utils.importer import load_excel_model
 
 
-st.set_page_config(page_title="HEval 卫生经济学评价分析系统", page_icon="⚕", layout="wide")
+def convert_strategy_costs(strategy: dict, conversion_factor: float) -> dict:
+    """Convert cost totals and their trend series without changing outcomes."""
+    converted = dict(strategy)
+    converted["total_cost"] = strategy["total_cost"] * conversion_factor
+    converted["cycle_costs"] = [value * conversion_factor for value in strategy["cycle_costs"]]
+    converted["cumulative_costs"] = [value * conversion_factor for value in strategy["cumulative_costs"]]
+    return converted
+
+
+st.set_page_config(page_title="卫生经济学评价分析系统", page_icon="⚕", layout="wide")
 st.markdown("""<style>
     .block-container {padding-top: 1.6rem; padding-bottom: 2rem;}
     [data-testid='stVerticalBlockBorderWrapper'] {border-color: #dbe5ee; border-radius: 10px;}
@@ -44,7 +53,7 @@ if st.sidebar.button(upload_label, use_container_width=True, disabled=uploaded_f
         # can reuse an earlier 3-state data_editor value after a 5-state file is
         # displayed, causing the model to change when the user clicks Run.
         st.session_state["input_version"] = st.session_state.get("input_version", 0) + 1
-        for state_key in ("project_name", "analysis_type", "strategy_a", "strategy_b", "perspective", "input_currency", "currency", "exchange_rate_usd_cny", "price_year", "horizon", "horizon_unit", "cycle", "cycle_unit", "cost_discount", "effect_discount", "states", "initial_distribution", "transition_matrix", "strategy_costs", "state_costs", "outcomes_CEA", "outcomes_CUA", "effect_unit", "latest_result", "latest_model"):
+        for state_key in ("project_name", "analysis_type", "strategy_a", "strategy_b", "input_currency", "currency", "exchange_rate_usd_cny", "price_year", "horizon", "horizon_unit", "cycle", "cycle_unit", "cost_discount", "effect_discount", "states", "initial_distribution", "transition_matrix", "strategy_costs", "state_costs", "outcomes_CEA", "outcomes_CUA", "effect_unit", "latest_result", "latest_model"):
             st.session_state.pop(state_key, None)
         st.session_state["imported_model"] = imported_model
         st.rerun()
@@ -61,7 +70,7 @@ if st.sidebar.button(reset_label, use_container_width=True):
     # Reset also needs a fresh key namespace, otherwise a prior imported model
     # may be restored from Streamlit's widget-state cache.
     st.session_state["input_version"] = st.session_state.get("input_version", 0) + 1
-    for state_key in ("project_name", "analysis_type", "strategy_a", "strategy_b", "perspective", "input_currency", "currency", "exchange_rate_usd_cny", "price_year", "horizon", "horizon_unit", "cycle", "cycle_unit", "cost_discount", "effect_discount", "states", "initial_distribution", "transition_matrix", "strategy_costs", "state_costs", "outcomes_CEA", "outcomes_CUA", "effect_unit", "latest_result", "latest_model", "imported_model"):
+    for state_key in ("project_name", "analysis_type", "strategy_a", "strategy_b", "input_currency", "currency", "exchange_rate_usd_cny", "price_year", "horizon", "horizon_unit", "cycle", "cycle_unit", "cost_discount", "effect_discount", "states", "initial_distribution", "transition_matrix", "strategy_costs", "state_costs", "outcomes_CEA", "outcomes_CUA", "effect_unit", "latest_result", "latest_model", "imported_model"):
         st.session_state.pop(state_key, None)
     st.rerun()
 st.sidebar.markdown("<p style='color:#C62828;font-size:0.72rem;white-space:nowrap;margin:0.6rem 0 0;'>Disclaimer: Only used for research purposes</p>", unsafe_allow_html=True)

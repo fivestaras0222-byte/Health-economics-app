@@ -12,7 +12,7 @@ def _years(value: float, unit: str) -> float:
 
 def render_inputs(language: str, preset: dict | None = None) -> tuple[dict, bool]:
     tr = lambda key: t(key, language)
-    units, perspectives = tr("years"), tr("perspectives")
+    units = tr("years")
     preset = preset or {}
     input_version = st.session_state.get("input_version", 0)
     widget_key = lambda name: f"{name}_{input_version}"
@@ -27,10 +27,39 @@ def render_inputs(language: str, preset: dict | None = None) -> tuple[dict, bool
         ca, cb = st.columns(2)
         with ca: name_a = st.text_input(tr("strategy_a"), study_preset.get("strategy_a", "Treatment A"), key=widget_key("strategy_a"))
         with cb: name_b = st.text_input(tr("strategy_b"), study_preset.get("strategy_b", "Treatment B"), key=widget_key("strategy_b"))
-        perspective = st.selectbox(tr("perspective"), perspectives, key=widget_key("perspective"))
-        cc, cy = st.columns(2)
-        with cc: currency = st.selectbox(tr("currency"), ["CNY", "USD"], key=widget_key("currency"))
-        with cy: price_year = st.number_input(tr("price_year"), 2000, 2100, int(study_preset.get("price_year", 2026)), key=widget_key("price_year"))
+        currency_options = ["CNY", "USD"]
+        source_currency_key = widget_key("input_currency")
+        current_currency_key = widget_key("current_currency")
+        source_default = study_preset.get("currency", "CNY")
+        if current_currency_key not in st.session_state:
+            st.session_state[current_currency_key] = source_default if source_default in currency_options else "CNY"
+
+        def sync_current_currency() -> None:
+            st.session_state[current_currency_key] = st.session_state[source_currency_key]
+
+        input_currency = st.selectbox(
+            "初始成本货币" if language == "zh" else "Initial cost currency",
+            currency_options,
+            index=currency_options.index(source_default) if source_default in currency_options else 0,
+            key=source_currency_key,
+            on_change=sync_current_currency,
+        )
+        switch_col, current_col = st.columns(2)
+        with switch_col:
+            if st.button("切换汇率" if language == "zh" else "Switch currency", use_container_width=True, key=widget_key("switch_currency")):
+                st.session_state[current_currency_key] = "USD" if st.session_state[current_currency_key] == "CNY" else "CNY"
+                st.rerun()
+        with current_col:
+            st.caption("当前货币" if language == "zh" else "Current currency")
+            st.markdown(f"**{st.session_state[current_currency_key]}**")
+        currency = st.session_state[current_currency_key]
+        exchange_rate = st.number_input(
+            "汇率：1 USD = X CNY" if language == "zh" else "Exchange rate: 1 USD = X CNY",
+            min_value=1.0001, value=7.0,
+            format="%.4f", key=widget_key("exchange_rate_usd_cny"),
+        )
+        st.caption("切换时按 1 USD = X CNY 自动换算成本；汇率请手动填写。" if language == "zh" else "Switching converts costs using 1 USD = X CNY. Enter the rate manually.")
+        price_year = st.number_input(tr("price_year"), 2000, 2100, int(study_preset.get("price_year", 2026)), key=widget_key("price_year"))
     with st.expander(tr("model"), expanded=True):
         ch, cl = st.columns(2)
         with ch:
@@ -90,5 +119,5 @@ def render_inputs(language: str, preset: dict | None = None) -> tuple[dict, bool
             outcomes = {"A": dict(zip(states, frame[name_a].tolist())), "B": dict(zip(states, frame[name_b].tolist()))}
     else: effect_unit = None
     run = st.button(tr("run"), type="primary", use_container_width=True)
-    model = {"study": {"project_name": project_name, "objective": "", "analysis_type": analysis_type, "strategy_a": name_a, "strategy_b": name_b, "perspective": perspective, "currency": currency, "price_year": int(price_year)}, "time": {"horizon_years": _years(horizon_value, horizon_unit), "cycle_years": _years(cycle_value, cycle_unit), "cost_discount_rate": cost_rate, "effect_discount_rate": effect_rate}, "markov": {"states": states, "initial_distribution": initial[tr("initial")].tolist(), "transition_matrix": matrix.values.tolist()}, "costs": {"initial_cost": {"A": costs.iloc[0][name_a], "B": costs.iloc[0][name_b]}, "strategy_cost_per_cycle": {"A": costs.iloc[1][name_a], "B": costs.iloc[1][name_b]}, "state_cost_per_cycle": dict(zip(states, state_cost[tr("state_cost")].tolist()))}, "outcomes": {"effect_unit": effect_unit, "state_utility": outcomes if analysis_type == "CUA" else {}, "state_effect": outcomes if analysis_type == "CEA" else {}}}
+    model = {"study": {"project_name": project_name, "objective": "", "analysis_type": analysis_type, "strategy_a": name_a, "strategy_b": name_b, "input_currency": input_currency, "currency": currency, "exchange_rate_usd_cny": exchange_rate, "price_year": int(price_year)}, "time": {"horizon_years": _years(horizon_value, horizon_unit), "cycle_years": _years(cycle_value, cycle_unit), "cost_discount_rate": cost_rate, "effect_discount_rate": effect_rate}, "markov": {"states": states, "initial_distribution": initial[tr("initial")].tolist(), "transition_matrix": matrix.values.tolist()}, "costs": {"initial_cost": {"A": costs.iloc[0][name_a], "B": costs.iloc[0][name_b]}, "strategy_cost_per_cycle": {"A": costs.iloc[1][name_a], "B": costs.iloc[1][name_b]}, "state_cost_per_cycle": dict(zip(states, state_cost[tr("state_cost")].tolist()))}, "outcomes": {"effect_unit": effect_unit, "state_utility": outcomes if analysis_type == "CUA" else {}, "state_effect": outcomes if analysis_type == "CEA" else {}}}
     return model, run
