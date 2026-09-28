@@ -35,4 +35,4 @@ pytest -q
 
 ## 第一版范围
 
-包含 CMA、CEA、CUA、共享转移矩阵的 Markov 队列模拟、A/B 分别输入的状态 Effect/Utility、折现、基础输入验证、结果表与三张趋势图。未包含 DSA、PSA、CEAC、NMB、多方案比较或其他高级 HTA 功能。
+包含 CMA、CEA、CUA、共享转移矩阵的 Markov 队列模拟、A/B 分别输入的状态 Effect/Utility、折现、基础输入验证、结果表与三张趋势图。
