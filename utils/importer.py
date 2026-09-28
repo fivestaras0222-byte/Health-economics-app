@@ -8,7 +8,7 @@ import pandas as pd
 
 
 REQUIRED_FIELDS = {
-    "project_name", "analysis_type", "strategy_a", "strategy_b", "perspective", "currency", "price_year",
+    "project_name", "analysis_type", "strategy_a", "strategy_b", "currency", "price_year",
     "horizon_years", "cycle_years", "cost_discount_rate", "effect_discount_rate", "effect_unit", "states",
     "initial_distribution", "transition_matrix", "initial_cost_a", "initial_cost_b", "strategy_cost_a",
     "strategy_cost_b", "state_costs", "cea_effect_a", "cea_effect_b", "cua_utility_a", "cua_utility_b",
@@ -52,7 +52,7 @@ def load_excel_model(uploaded_file) -> dict:
             raise ValueError(f"{field} must contain one | separated value per state")
         return dict(zip(states, values))
     return {
-        "study": {"project_name": str(row["project_name"]), "objective": "", "analysis_type": str(row["analysis_type"]), "strategy_a": str(row["strategy_a"]), "strategy_b": str(row["strategy_b"]), "perspective": str(row["perspective"]), "currency": str(row["currency"]), "price_year": int(_number(row["price_year"], "price_year"))},
+        "study": {"project_name": str(row["project_name"]), "objective": "", "analysis_type": str(row["analysis_type"]), "strategy_a": str(row["strategy_a"]), "strategy_b": str(row["strategy_b"]), "currency": str(row["currency"]), "price_year": int(_number(row["price_year"], "price_year"))},
         "time": {"horizon_years": _number(row["horizon_years"], "horizon_years"), "cycle_years": _number(row["cycle_years"], "cycle_years"), "cost_discount_rate": _number(row["cost_discount_rate"], "cost_discount_rate"), "effect_discount_rate": _number(row["effect_discount_rate"], "effect_discount_rate")},
         "markov": {"states": states, "initial_distribution": initial_distribution, "transition_matrix": matrix},
         "costs": {"initial_cost": {"A": _number(row["initial_cost_a"], "initial_cost_a"), "B": _number(row["initial_cost_b"], "initial_cost_b")}, "strategy_cost_per_cycle": {"A": _number(row["strategy_cost_a"], "strategy_cost_a"), "B": _number(row["strategy_cost_b"], "strategy_cost_b")}, "state_cost_per_cycle": state_values("state_costs")},
