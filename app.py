@@ -29,7 +29,7 @@ def convert_strategy_costs(strategy: dict, conversion_factor: float) -> dict:
     return converted
 
 
-st.set_page_config(page_title="卫生经济学评价分析系统", page_icon="⚕", layout="wide")
+st.set_page_config(page_title="HEval 卫生经济学评价分析系统", page_icon="⚕", layout="wide")
 st.markdown("""<style>
     .block-container {padding-top: 1.6rem; padding-bottom: 2rem;}
     [data-testid='stVerticalBlockBorderWrapper'] {border-color: #dbe5ee; border-radius: 10px;}
