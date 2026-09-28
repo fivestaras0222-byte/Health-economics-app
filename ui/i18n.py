@@ -4,7 +4,7 @@ from __future__ import annotations
 
 TEXT = {
     "zh": {
-        "language": "界面语言", "title": "卫生经济学评价分析系统",
+        "language": "界面语言", "title": "HEval 卫生经济学评价分析系统",
         "subtitle": "CMA · CEA · CUA · 基础 Markov 队列模型", "design": "① 研究设计",
         "model": "② 时间与 Markov 模型", "costs": "③ 成本参数",
         "utility": "④ Utility 参数", "effect": "④ Effect 参数", "project": "项目名称",
@@ -27,7 +27,7 @@ TEXT = {
         "not_applicable": "不适用", "years": ["年", "季度", "月"],
     },
     "en": {
-        "language": "Language", "title": "Health Economics Evaluation System",
+        "language": "Language", "title": "HEval System",
         "subtitle": "CMA · CEA · CUA · Basic Markov cohort model", "design": "① Study design",
         "model": "② Time and Markov model", "costs": "③ Cost parameters",
         "utility": "④ Utility parameters", "effect": "④ Effect parameters", "project": "Project name",
