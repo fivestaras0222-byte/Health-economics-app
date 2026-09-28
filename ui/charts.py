@@ -6,10 +6,22 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
-def state_chart(trace: pd.DataFrame, title: str):
-    frame = trace.reset_index().melt(id_vars="cycle", var_name="健康状态", value_name="患者比例")
-    fig = px.area(frame, x="cycle", y="患者比例", color="健康状态", title=title)
-    fig.update_layout(yaxis_tickformat=".0%", legend_title_text="")
+def state_chart(trace: pd.DataFrame, title: str, cycle_title: str = "Cycle",
+                proportion_title: str = "Patient proportion", state_title: str = "State"):
+    frame = trace.reset_index().melt(
+        id_vars="cycle", var_name=state_title, value_name=proportion_title
+    )
+    fig = px.area(
+        frame, x="cycle", y=proportion_title, color=state_title,
+        title=title, labels={"cycle": cycle_title, proportion_title: proportion_title,
+                             state_title: state_title},
+    )
+    fig.update_layout(
+        xaxis_title=cycle_title,
+        yaxis_title=proportion_title,
+        yaxis_tickformat=".0%",
+        legend_title_text="",
+    )
     return fig
 
 

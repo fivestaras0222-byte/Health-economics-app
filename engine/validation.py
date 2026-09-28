@@ -70,6 +70,7 @@ def validate_model(model: dict) -> list[str]:
     if time["horizon_years"] / time["cycle_years"] % 1 > EPSILON:
         errors.append("时间范围必须能被周期长度整除。")
     errors += _number_errors([time["cost_discount_rate"], time["effect_discount_rate"]], "折现率", 0)
+    errors += _number_errors([model["study"].get("exchange_rate_usd_cny", 7.0)], "汇率", 1.0000001)
 
     costs = model["costs"]
     errors += _number_errors(

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+from copy import deepcopy
 import pandas as pd
 
 
@@ -47,3 +48,12 @@ def calculate_incremental(strategy_a: dict, strategy_b: dict, analysis_type: str
     if math.isclose(delta_outcome, 0.0, abs_tol=1e-8):
         return {"cost": delta_cost, "outcome": delta_outcome, "icer": None, "icer_status": "unstable"}
     return {"cost": delta_cost, "outcome": delta_outcome, "icer": delta_cost / delta_outcome, "icer_status": "valid"}
+
+
+def convert_strategy_costs(strategy: dict, conversion_factor: float) -> dict:
+    """Convert all cost results while preserving outcomes and cycle timing."""
+    converted = deepcopy(strategy)
+    for key in ("total_cost", "cycle_costs", "cumulative_costs"):
+        value = converted[key]
+        converted[key] = [item * conversion_factor for item in value] if isinstance(value, list) else value * conversion_factor
+    return converted
