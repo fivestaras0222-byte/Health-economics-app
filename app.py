@@ -102,12 +102,25 @@ with right:
         result = st.session_state["latest_result"]; saved_model = st.session_state["latest_model"]
         render_results(result, saved_model, language)
         st.subheader(tr("trend"))
-        st.plotly_chart(state_chart(result["trace"], tr("state_chart")), use_container_width=True)
+        # Set the labels here as well as in charts.py.  This keeps the language
+        # correct when an older charts.py file is still present after a web upload.
+        chart_cycle_label = "周期" if language == "zh" else "Cycle"
+        chart_proportion_label = "患者比例" if language == "zh" else "Patient proportion"
+        state_figure = state_chart(result["trace"], tr("state_chart"))
+        state_figure.update_layout(
+            xaxis_title=chart_cycle_label,
+            yaxis_title=chart_proportion_label,
+        )
+        st.plotly_chart(state_figure, use_container_width=True)
         study = saved_model["study"]
         st.plotly_chart(comparison_chart(result["strategy_a"]["cumulative_costs"], result["strategy_b"]["cumulative_costs"], study["strategy_a"], study["strategy_b"], tr("cost_chart"), f"{tr('cum_cost')} ({study['currency']})", tr("cycle_axis")), use_container_width=True)
         if study["analysis_type"] != "CMA":
-            label = "累计 QALY" if study["analysis_type"] == "CUA" else f"累计 {saved_model['outcomes']['effect_unit']}"
-            outcome_title = label + (" trend" if language == "en" else "趋势")
+            if study["analysis_type"] == "CUA":
+                label = "累计 QALY" if language == "zh" else "Cumulative QALY"
+            else:
+                prefix = "累计 Effect" if language == "zh" else "Cumulative Effect"
+                label = f"{prefix} ({saved_model['outcomes']['effect_unit']})"
+            outcome_title = label
             st.plotly_chart(comparison_chart(result["strategy_a"]["cumulative_outcomes"], result["strategy_b"]["cumulative_outcomes"], study["strategy_a"], study["strategy_b"], outcome_title, label, tr("cycle_axis")), use_container_width=True)
         st.download_button(tr("export"), result_json(saved_model, result), "health_economics_result.json", "application/json")
         csv_label = "导出结果 CSV" if language == "zh" else "Export results as CSV"
